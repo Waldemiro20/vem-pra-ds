@@ -7,6 +7,10 @@ export const Route = createFileRoute("/admin")({
     meta: [
       { title: "Cadastros — Jornada EEEP" },
       { name: "description", content: "Área restrita para baixar os cadastros da Jornada EEEP." },
+      { property: "og:title", content: "Cadastros — Jornada EEEP" },
+      { property: "og:description", content: "Área restrita para baixar os cadastros da Jornada EEEP." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),

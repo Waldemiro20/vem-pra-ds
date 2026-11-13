@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Application rules
+
+- Keep Google Sheets delivery in a server-only helper behind a validated server function; accept only explicit JSON success and log classified failures, never raw responses or credentials, so blocked access cannot masquerade as delivery or leak secrets.

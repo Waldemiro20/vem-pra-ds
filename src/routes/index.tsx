@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { CheckCircle2, Globe, Lock, MapPin, Phone, Settings, User, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,7 @@ function Logo() {
 }
 
 function Index() {
+  const enviarCadastro = useServerFn(enviarParaPlanilha);
   const [form, setForm] = useState<Form>({ nome: "", whatsapp: "", localidade: "" });
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
@@ -58,7 +60,7 @@ function Index() {
     // Salva no banco e na planilha do Google ao mesmo tempo.
     const [banco, planilha] = await Promise.allSettled([
       supabase.from("cadastros_ds").insert(r.data),
-      enviarParaPlanilha({ data: r.data }),
+      enviarCadastro({ data: r.data }),
     ]);
     const salvouNoBanco = banco.status === "fulfilled" && !banco.value.error;
     const salvouNaPlanilha = planilha.status === "fulfilled" && planilha.value.ok;
