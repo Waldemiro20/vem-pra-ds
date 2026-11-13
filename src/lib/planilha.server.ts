@@ -14,8 +14,8 @@ export type ResultadoPlanilha =
   | { ok: false; motivo: FalhaPlanilha; statusHttp?: number };
 
 type ConfiguracaoPlanilha = {
-  url?: string;
-  token?: string;
+  url?: string | undefined;
+  token?: string | undefined;
   fetchImpl?: typeof fetch;
 };
 
