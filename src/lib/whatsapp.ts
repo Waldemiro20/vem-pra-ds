@@ -13,11 +13,29 @@ export function mensagemConvite(nome: string) {
   return `${saudacao}Comece sua jornada na SAM pelo curso de Desenvolvimento de Sistemas: ${LINK_JOGO}`;
 }
 
-// Link "clique para conversar" do WhatsApp (sem API): abre a conversa com a mensagem já escrita.
+// Links do WhatsApp sem API: abrem a conversa com a mensagem já escrita (o envio é com Enter).
 // Números de 10/11 dígitos recebem o código do Brasil (55).
-export function linkWhatsapp(whatsapp: string, mensagem: string) {
+function numeroInternacional(whatsapp: string) {
   let numero = whatsapp.replace(/\D/g, "");
   if (numero.length === 10 || numero.length === 11) numero = `55${numero}`;
-  if (numero.length < 12) return null;
-  return `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
+  return numero.length < 12 ? null : numero;
+}
+
+// Celular: wa.me abre o app do WhatsApp.
+export function linkWhatsapp(whatsapp: string, mensagem: string) {
+  const numero = numeroInternacional(whatsapp);
+  return numero ? `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}` : null;
+}
+
+// Computador: vai direto para a conversa no WhatsApp Web, sem a página intermediária do wa.me
+// (que às vezes cai na tela de contatos, principalmente com o WhatsApp Web já aberto).
+export function linkWhatsappWeb(whatsapp: string, mensagem: string) {
+  const numero = numeroInternacional(whatsapp);
+  return numero
+    ? `https://web.whatsapp.com/send?phone=${numero}&text=${encodeURIComponent(mensagem)}`
+    : null;
+}
+
+export function ehCelular(userAgent: string) {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
 }

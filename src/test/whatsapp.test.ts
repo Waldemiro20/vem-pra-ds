@@ -13,3 +13,16 @@ test("link wa.me com DDI 55 e mensagem codificada", () => {
   );
 });
 test("número incompleto não gera link", () => expect(linkWhatsapp("(85) 9999", "oi")).toBeNull());
+
+import { ehCelular, linkWhatsappWeb } from "@/lib/whatsapp";
+test("link do WhatsApp Web vai direto para a conversa", () => {
+  const link = linkWhatsappWeb("(85) 99999-0000", "Olá & tchau");
+  expect(link).toBe(
+    "https://web.whatsapp.com/send?phone=5585999990000&text=Ol%C3%A1%20%26%20tchau",
+  );
+  expect(linkWhatsappWeb("123", "oi")).toBeNull();
+});
+test("detecta celular pelo navegador", () => {
+  expect(ehCelular("Mozilla/5.0 (Linux; Android 14) Mobile")).toBe(true);
+  expect(ehCelular("Mozilla/5.0 (X11; Linux x86_64) Chrome/140")).toBe(false);
+});

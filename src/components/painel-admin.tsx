@@ -20,7 +20,7 @@ import {
   sairAdmin,
   verSessaoAdmin,
 } from "@/app/actions";
-import { linkWhatsapp, mensagemConvite } from "@/lib/whatsapp";
+import { ehCelular, linkWhatsapp, linkWhatsappWeb, mensagemConvite } from "@/lib/whatsapp";
 import type { CadastroAdmin } from "@/lib/cadastro";
 
 const ATUALIZAR_A_CADA_MS = 5_000;
@@ -254,7 +254,8 @@ function Painel() {
           <li className="text-white/70">Nenhum cadastro encontrado.</li>
         )}
         {visiveis.map((c) => {
-          const link = linkWhatsapp(c.whatsapp, mensagemConvite(c.nome));
+          const mensagem = mensagemConvite(c.nome);
+          const link = linkWhatsapp(c.whatsapp, mensagem);
           const novo = vistas !== null && !vistas.has(c.id);
           return (
             <li
@@ -289,7 +290,22 @@ function Painel() {
                     href={link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => !c.enviadoEm && marcarEnviado.mutate(c)}
+                    onClick={(e) => {
+                      // No computador, abre direto a conversa no WhatsApp Web e reaproveita
+                      // sempre a mesma aba (o WhatsApp Web só funciona em uma aba por vez).
+                      if (!ehCelular(navigator.userAgent)) {
+                        const web = linkWhatsappWeb(c.whatsapp, mensagem);
+                        if (web) {
+                          e.preventDefault();
+                          const aba = window.open(web, "whatsapp_web");
+                          if (aba) {
+                            aba.opener = null;
+                            aba.focus();
+                          }
+                        }
+                      }
+                      if (!c.enviadoEm) marcarEnviado.mutate(c);
+                    }}
                     className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition hover:brightness-110 ${
                       c.enviadoEm
                         ? "border border-white/20 bg-white/10"
