@@ -1,27 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { criarSessao, sessaoValida } from "@/lib/admin-sessao.server";
-import {
-  ADMIN_INICIAL,
-  alterarDados,
-  lerDados,
-  novoCadastro,
-  type Armazenamento,
-} from "@/lib/dados.server";
-import { conferirSenha, gerarHashSenha } from "@/lib/senha.server";
+import { listarCadastrosDaPlanilha, verificarLoginNaPlanilha } from "@/lib/planilha.server";
 
-function memoria(inicial: string | null = null) {
-  const estado = { texto: inicial, gravacoes: 0 };
-  const arm: Armazenamento = {
-    ler: async () => estado.texto,
-    gravar: async (t) => {
-      estado.texto = t;
-      estado.gravacoes++;
-    },
-  };
-  return { arm, estado };
-}
-
-const form = { nome: "Ana", whatsapp: "(85) 99999-0000", localidade: "Aracoiaba" };
+const config = (body: string, init?: ResponseInit) => ({
+  url: "https://example.test/exec",
+  token: "credencial-ficticia-de-teste",
+  fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(new Response(body, init)),
+});
 
 describe("sessão do admin", () => {
   it("aceita a sessão assinada com o mesmo segredo e dentro do prazo", async () => {
@@ -37,65 +22,43 @@ describe("sessão do admin", () => {
   });
 });
 
-describe("senha", () => {
-  it("confere o hash gerado e recusa senha errada", async () => {
-    const h = await gerarHashSenha("minha-senha", 1000);
-    expect(await conferirSenha("minha-senha", h)).toBe(true);
-    expect(await conferirSenha("outra", h)).toBe(false);
-    expect(await conferirSenha("minha-senha", "lixo")).toBe(false);
+describe("login pela planilha", () => {
+  it("só autoriza com autorizado === true", async () => {
+    expect(
+      await verificarLoginNaPlanilha(
+        { email: "a@b.c", senha: "x" },
+        config('{"ok":true,"autorizado":true}'),
+      ),
+    ).toEqual({ ok: true, autorizado: true });
+    expect(
+      await verificarLoginNaPlanilha(
+        { email: "a@b.c", senha: "x" },
+        config('{"ok":true,"autorizado":"true"}'),
+      ),
+    ).toEqual({ ok: true, autorizado: false });
   });
-  it("o admin inicial guarda só o hash", () => {
-    expect(ADMIN_INICIAL.senhaHash.startsWith("pbkdf2-sha256$")).toBe(true);
+  it("bloqueio do Google não vira login", async () => {
+    const r = await verificarLoginNaPlanilha(
+      { email: "a@b.c", senha: "x" },
+      config("<html></html>", { status: 401 }),
+    );
+    expect(r.ok).toBe(false);
   });
 });
 
-describe("dados.json", () => {
-  it("cria o arquivo com o admin inicial quando não existe", async () => {
-    const { arm, estado } = memoria();
-    const d = await lerDados(arm);
-    expect(d.admin.email).toBe(ADMIN_INICIAL.email);
-    expect(d.cadastros).toEqual([]);
-    expect(d.segredoSessao).toHaveLength(64);
-    expect(JSON.parse(estado.texto!)).toEqual(d);
-  });
-
-  it("salva um cadastro e confirma relendo", async () => {
-    const { arm } = memoria();
-    const c = novoCadastro(form);
-    await alterarDados(
-      arm,
-      (d) => d.cadastros.push(c),
-      (d) => d.cadastros.some((x) => x.id === c.id),
-    );
-    expect((await lerDados(arm)).cadastros).toEqual([c]);
-  });
-
-  it("repete quando outra gravação apagou a alteração", async () => {
-    const { arm, estado } = memoria();
-    await lerDados(arm);
-    const original = arm.gravar;
-    let primeira = true;
-    arm.gravar = async (t) => {
-      // Simula outra requisição sobrescrevendo logo depois da primeira gravação.
-      const antes = estado.texto;
-      await original(t);
-      if (primeira) {
-        primeira = false;
-        estado.texto = antes;
-      }
+describe("listagem da planilha", () => {
+  it("valida o formato dos cadastros", async () => {
+    const c = {
+      linha: 2,
+      data: "2026-11-18T10:00:00.000Z",
+      nome: "Ana",
+      whatsapp: "(85) 99999-0000",
+      localidade: "Aracoiaba",
+      enviadoEm: "",
     };
-    const c = novoCadastro(form);
-    await alterarDados(
-      arm,
-      (d) => d.cadastros.push(c),
-      (d) => d.cadastros.some((x) => x.id === c.id),
-    );
-    expect((await lerDados(arm)).cadastros.map((x) => x.id)).toEqual([c.id]);
-  });
-
-  it("não sobrescreve um arquivo inválido", async () => {
-    const { arm, estado } = memoria('{"quebrado": true}');
-    await expect(lerDados(arm)).rejects.toThrow();
-    expect(estado.gravacoes).toBe(0);
+    expect(
+      await listarCadastrosDaPlanilha(config(JSON.stringify({ ok: true, cadastros: [c] }))),
+    ).toEqual({ ok: true, cadastros: [c] });
+    expect((await listarCadastrosDaPlanilha(config('{"ok":true,"cadastros":"x"}'))).ok).toBe(false);
   });
 });

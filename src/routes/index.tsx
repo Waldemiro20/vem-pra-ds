@@ -4,15 +4,23 @@ import { useState } from "react";
 import { CheckCircle2, Globe, Lock, MapPin, Phone, Settings, User, Zap } from "lucide-react";
 import { formatWhatsapp } from "@/lib/whatsapp";
 import { cadastroSchema as schema, type CadastroForm as Form } from "@/lib/cadastro";
-import { salvarCadastro } from "@/lib/cadastro.functions";
+import { enviarParaPlanilha } from "@/lib/planilha.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Jornada EEEP: O Desafio de Desenvolvimento de Sistemas" },
-      { name: "description", content: "Identifique-se e inicie sua Jornada EEEP no curso de Desenvolvimento de Sistemas." },
+      {
+        name: "description",
+        content:
+          "Identifique-se e inicie sua Jornada EEEP no curso de Desenvolvimento de Sistemas.",
+      },
       { property: "og:title", content: "Jornada EEEP" },
-      { property: "og:description", content: "Identifique-se e inicie sua Jornada EEEP no curso de Desenvolvimento de Sistemas." },
+      {
+        property: "og:description",
+        content:
+          "Identifique-se e inicie sua Jornada EEEP no curso de Desenvolvimento de Sistemas.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -27,20 +35,42 @@ const FOTOS = Array.from({ length: 12 }, (_, i) => `/fotos/${i + 1}.jpg`);
 function Logo() {
   return (
     <div className="relative mx-auto h-36 w-36 rounded-3xl border-2 border-white/40 bg-gradient-to-br from-[#a855f7] to-[#7c3aed] shadow-[0_20px_60px_-10px_rgba(168,85,247,0.8)] sm:h-40 sm:w-40">
-      <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full text-white" fill="none" stroke="currentColor" strokeWidth="3" strokeLinejoin="round">
+      <svg
+        viewBox="0 0 100 100"
+        className="absolute inset-0 h-full w-full text-white"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      >
         <polygon points="50,22 72,35 72,61 50,74 28,61 28,35" />
       </svg>
-      <Globe className="absolute left-[33%] top-[36%] h-[26%] w-[26%] text-sky-300" strokeWidth={2} />
-      <Zap className="absolute right-[10%] top-[8%] h-[30%] w-[30%] rotate-12 text-white" strokeWidth={2} />
-      <Zap className="absolute bottom-[4%] left-[18%] h-[28%] w-[28%] -rotate-12 text-white" strokeWidth={2} />
-      <Lock className="absolute bottom-[22%] left-[10%] h-[18%] w-[18%] fill-white text-white" strokeWidth={2} />
-      <Settings className="absolute bottom-[16%] right-[14%] h-[20%] w-[20%] text-white" strokeWidth={2} />
+      <Globe
+        className="absolute left-[33%] top-[36%] h-[26%] w-[26%] text-sky-300"
+        strokeWidth={2}
+      />
+      <Zap
+        className="absolute right-[10%] top-[8%] h-[30%] w-[30%] rotate-12 text-white"
+        strokeWidth={2}
+      />
+      <Zap
+        className="absolute bottom-[4%] left-[18%] h-[28%] w-[28%] -rotate-12 text-white"
+        strokeWidth={2}
+      />
+      <Lock
+        className="absolute bottom-[22%] left-[10%] h-[18%] w-[18%] fill-white text-white"
+        strokeWidth={2}
+      />
+      <Settings
+        className="absolute bottom-[16%] right-[14%] h-[20%] w-[20%] text-white"
+        strokeWidth={2}
+      />
     </div>
   );
 }
 
 function Index() {
-  const enviarCadastro = useServerFn(salvarCadastro);
+  const enviarCadastro = useServerFn(enviarParaPlanilha);
   const [form, setForm] = useState<Form>({ nome: "", whatsapp: "", localidade: "" });
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
@@ -56,10 +86,10 @@ function Index() {
     }
     setErrors({});
     setStatus("sending");
-    // Salva no dados.json (Supabase Storage) pelo servidor.
+    // Salva só na planilha do Google (pelo servidor).
     try {
-      const r2 = await enviarCadastro({ data: r.data });
-      setStatus(r2.ok ? "done" : "error");
+      const resultado = await enviarCadastro({ data: r.data });
+      setStatus(resultado.ok ? "done" : "error");
     } catch {
       setStatus("error");
     }
@@ -83,7 +113,10 @@ function Index() {
           value={form[k]}
           placeholder={placeholder}
           onChange={(e) =>
-            setForm({ ...form, [k]: k === "whatsapp" ? formatWhatsapp(e.target.value) : e.target.value })
+            setForm({
+              ...form,
+              [k]: k === "whatsapp" ? formatWhatsapp(e.target.value) : e.target.value,
+            })
           }
           aria-invalid={!!errors[k]}
           className="h-12 w-full rounded-xl border border-white/15 bg-white/10 pl-11 pr-4 text-[15px] text-white outline-none transition placeholder:text-white/85 focus:border-[#c084fc] focus:bg-white/15 focus:ring-4 focus:ring-[#a855f7]/30 aria-[invalid=true]:border-red-400"
@@ -146,14 +179,18 @@ function Index() {
               </h2>
 
               <form onSubmit={submit} noValidate className="mt-6 space-y-5">
-                {field("nome", "Nome completo ou Apelido", "Ex.: Ana Dev", User, { autoComplete: "name" })}
+                {field("nome", "Nome completo ou Apelido", "Ex.: Ana Dev", User, {
+                  autoComplete: "name",
+                })}
                 {field("whatsapp", "WhatsApp", "(85) 9 9999-9999", Phone, {
                   inputMode: "numeric",
                   autoComplete: "tel",
                 })}
                 {field("localidade", "Sua Localidade", "Aracoiaba", MapPin)}
                 {status === "error" && (
-                  <p className="text-sm font-medium text-red-300">Não foi possível enviar. Tente novamente.</p>
+                  <p className="text-sm font-medium text-red-300">
+                    Não foi possível enviar. Tente novamente.
+                  </p>
                 )}
                 <button
                   type="submit"

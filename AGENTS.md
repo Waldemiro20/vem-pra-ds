@@ -31,4 +31,4 @@ use the editor.
 
 ## Application rules
 
-- All app data (registrations and the super admin login) lives in one JSON file, `dados.json`, in the private Supabase Storage bucket `sam-dados`, accessed only through `src/lib/dados.server.ts` behind validated server functions. No Google Sheets and no database tables for new data. Store only password hashes, confirm every write by re-reading, and log classified failures, never personal data, raw responses or credentials.
+- Keep Google Sheets delivery in a server-only helper behind a validated server function; accept only explicit JSON success and log classified failures, never raw responses or credentials, so blocked access cannot masquerade as delivery or leak secrets.

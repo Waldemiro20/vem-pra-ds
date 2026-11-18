@@ -21,7 +21,7 @@ import {
   verSessaoAdmin,
 } from "@/lib/admin.functions";
 import { linkWhatsapp, mensagemConvite } from "@/lib/whatsapp";
-import type { CadastroSalvo } from "@/lib/dados.server";
+import type { CadastroPlanilha } from "@/lib/planilha.server";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -139,7 +139,7 @@ function Painel() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todos" | "pendentes" | "enviados">("todos");
   // Linhas que já estavam na tela no primeiro carregamento; as que chegarem depois ganham o selo "Novo".
-  const vistas = useRef<Set<string> | null>(null);
+  const vistas = useRef<Set<number> | null>(null);
 
   const lista = useQuery({
     queryKey: ["admin-cadastros"],
@@ -154,14 +154,14 @@ function Painel() {
   });
 
   const marcarEnviado = useMutation({
-    mutationFn: (c: CadastroSalvo) => marcar({ data: { id: c.id } }),
+    mutationFn: (c: CadastroPlanilha) => marcar({ data: { linha: c.linha, whatsapp: c.whatsapp } }),
     onMutate: (c) => {
       qc.setQueryData(["admin-cadastros"], (antigo: typeof lista.data) =>
         antigo?.ok
           ? {
               ...antigo,
               cadastros: antigo.cadastros.map((x) =>
-                x.id === c.id ? { ...x, enviadoEm: new Date().toISOString() } : x,
+                x.linha === c.linha ? { ...x, enviadoEm: new Date().toISOString() } : x,
               ),
             }
           : antigo,
@@ -178,7 +178,7 @@ function Painel() {
 
   const cadastros = lista.data?.ok ? [...lista.data.cadastros].reverse() : [];
   if (lista.data?.ok && vistas.current === null)
-    vistas.current = new Set(cadastros.map((c) => c.id));
+    vistas.current = new Set(cadastros.map((c) => c.linha));
 
   const enviados = cadastros.filter((c) => c.enviadoEm).length;
   const termo = busca.trim().toLowerCase();
@@ -258,9 +258,9 @@ function Painel() {
         </p>
       </section>
 
-      {lista.data && !lista.data.ok && lista.data.erro === "armazenamento" && (
+      {lista.data && !lista.data.ok && lista.data.erro === "planilha" && (
         <p className="mt-6 rounded-xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-200">
-          Não foi possível ler os dados agora. Tentando de novo automaticamente...
+          Não foi possível ler a planilha agora. Tentando de novo automaticamente...
         </p>
       )}
 
@@ -271,10 +271,10 @@ function Painel() {
         )}
         {visiveis.map((c) => {
           const link = linkWhatsapp(c.whatsapp, mensagemConvite(c.nome));
-          const novo = vistas.current !== null && !vistas.current.has(c.id);
+          const novo = vistas.current !== null && !vistas.current.has(c.linha);
           return (
             <li
-              key={c.id}
+              key={`${c.linha}-${c.whatsapp}`}
               className="flex flex-wrap items-center gap-4 rounded-2xl border border-white/10 bg-[#3a2668]/70 p-4"
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#7c3aed]/40 font-display text-lg font-extrabold">

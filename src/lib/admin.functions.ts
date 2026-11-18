@@ -2,49 +2,40 @@ import { createServerFn } from "@tanstack/react-start";
 import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { COOKIE_ADMIN, DURACAO_SESSAO_S, criarSessao, sessaoValida } from "./admin-sessao.server";
-import { alterarDados, armazenamentoSupabase, lerDados, motivoDoErro } from "./dados.server";
-import { conferirSenha } from "./senha.server";
+import {
+  configuracaoDoAmbiente,
+  listarCadastrosDaPlanilha,
+  marcarMensagemEnviada,
+  registrarFalha,
+  verificarLoginNaPlanilha,
+} from "./planilha.server";
 
-// O login do super admin fica no próprio dados.json (e-mail + hash da senha).
-// Se autorizado, o servidor grava um cookie de sessão assinado com o segredoSessao do JSON.
+// As credenciais do painel ficam na aba "Admin" da planilha (veja google-sheets/planilha.gs).
+// O servidor só confere com o Apps Script e, se autorizado, grava um cookie de sessão assinado.
 
-function registrar(contexto: string, error: unknown) {
-  console.error(`[dados:${contexto}] Falha: ${motivoDoErro(error)}.`);
-}
+const segredo = () => process.env["GOOGLE_SHEETS_TOKEN"];
+const autenticado = () => sessaoValida(getCookie(COOKIE_ADMIN), segredo());
 
-async function dadosSeAutenticado() {
-  const dados = await lerDados(await armazenamentoSupabase());
-  return (await sessaoValida(getCookie(COOKIE_ADMIN), dados.segredoSessao)) ? dados : null;
-}
-
-export const verSessaoAdmin = createServerFn({ method: "GET" }).handler(async () => {
-  if (!getCookie(COOKIE_ADMIN)) return { autenticado: false };
-  try {
-    return { autenticado: (await dadosSeAutenticado()) !== null };
-  } catch (error) {
-    registrar("sessao", error);
-    return { autenticado: false };
-  }
-});
+export const verSessaoAdmin = createServerFn({ method: "GET" }).handler(async () => ({
+  autenticado: await autenticado(),
+}));
 
 export const entrarAdmin = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({ email: z.string().trim().email().max(200), senha: z.string().min(1).max(200) }),
   )
   .handler(async ({ data }) => {
-    let dados;
-    try {
-      dados = await lerDados(await armazenamentoSupabase());
-    } catch (error) {
-      registrar("login", error);
-      return { ok: false as const, erro: "Não foi possível acessar os dados. Tente novamente." };
+    const r = await verificarLoginNaPlanilha(data, configuracaoDoAmbiente());
+    if (!r.ok) {
+      registrarFalha("login", r);
+      return {
+        ok: false as const,
+        erro: "Não foi possível falar com a planilha. Tente novamente.",
+      };
     }
+    if (!r.autorizado) return { ok: false as const, erro: "E-mail ou senha incorretos." };
 
-    const emailOk = dados.admin.email.trim().toLowerCase() === data.email.toLowerCase();
-    const senhaOk = await conferirSenha(data.senha, dados.admin.senhaHash);
-    if (!emailOk || !senhaOk) return { ok: false as const, erro: "E-mail ou senha incorretos." };
-
-    setCookie(COOKIE_ADMIN, await criarSessao(dados.segredoSessao), {
+    setCookie(COOKIE_ADMIN, await criarSessao(segredo()!), {
       httpOnly: true,
       secure: true,
       sameSite: "strict",
@@ -60,34 +51,20 @@ export const sairAdmin = createServerFn({ method: "POST" }).handler(async () => 
 });
 
 export const listarCadastrosAdmin = createServerFn({ method: "GET" }).handler(async () => {
-  try {
-    const dados = await dadosSeAutenticado();
-    if (!dados) return { ok: false as const, erro: "nao_autenticado" as const };
-    return { ok: true as const, cadastros: dados.cadastros };
-  } catch (error) {
-    registrar("listar", error);
-    return { ok: false as const, erro: "armazenamento" as const };
+  if (!(await autenticado())) return { ok: false as const, erro: "nao_autenticado" as const };
+  const r = await listarCadastrosDaPlanilha(configuracaoDoAmbiente());
+  if (!r.ok) {
+    registrarFalha("listar", r);
+    return { ok: false as const, erro: "planilha" as const };
   }
+  return { ok: true as const, cadastros: r.cadastros };
 });
 
 export const marcarEnviadoAdmin = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().uuid() }))
+  .inputValidator(z.object({ linha: z.number().int().min(2), whatsapp: z.string().max(40) }))
   .handler(async ({ data }) => {
-    try {
-      if (!(await dadosSeAutenticado())) return { ok: false };
-      await alterarDados(
-        await armazenamentoSupabase(),
-        (d) => {
-          const c = d.cadastros.find((x) => x.id === data.id);
-          if (c) c.enviadoEm = new Date().toISOString();
-        },
-        (d) =>
-          d.cadastros.find((x) => x.id === data.id)?.enviadoEm != null ||
-          !d.cadastros.some((x) => x.id === data.id),
-      );
-      return { ok: true };
-    } catch (error) {
-      registrar("marcar", error);
-      return { ok: false };
-    }
+    if (!(await autenticado())) return { ok: false as const };
+    const r = await marcarMensagemEnviada(data, configuracaoDoAmbiente());
+    if (!r.ok) registrarFalha("marcar", r);
+    return { ok: r.ok };
   });
