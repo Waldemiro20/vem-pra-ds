@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { paraCsv, paraJson } from "@/lib/exportar";
 
-const linha = { nome: 'Ana "Dev"', whatsapp: "(85) 99999-9999", localidade: "Aracoiaba", created_at: "2026-11-13T16:00:00Z" };
+const linha = {
+  nome: 'Ana "Dev"',
+  whatsapp: "(85) 99999-9999",
+  localidade: "Aracoiaba",
+  created_at: "2026-11-13T16:00:00Z",
+};
 
 describe("exportar", () => {
   it("gera CSV com BOM, ; e aspas escapadas", () => {

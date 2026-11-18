@@ -1,3 +1,4 @@
+import "server-only";
 // Sessão do painel /admin: o cookie guarda um token aleatório de 32 bytes;
 // o banco (tabela sam_sessoes) guarda só o SHA-256 dele, com a data de expiração.
 export const COOKIE_ADMIN = "sam_admin";

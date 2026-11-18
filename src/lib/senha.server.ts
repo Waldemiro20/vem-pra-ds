@@ -1,3 +1,4 @@
+import "server-only";
 // Hash de senha com PBKDF2 (Web Crypto, funciona no Cloudflare Worker).
 // Formato: "pbkdf2-sha256$<iterações>$<sal base64url>$<hash base64url>".
 const codificador = new TextEncoder();

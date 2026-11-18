@@ -1,3 +1,4 @@
+import "server-only";
 import type { CadastroAdmin } from "./cadastro";
 import {
   DURACAO_SESSAO_S,

@@ -1,4 +1,53 @@
-# Vem Ser DS
+# Vem pra DS — Jornada EEEP
+
+Landing page de cadastro do curso de Desenvolvimento de Sistemas + painel de super admin
+(`/admin`) com os cadastros em tempo real e botão para mandar o convite pelo WhatsApp.
+
+**Stack:** Next.js 16 (App Router) · Tailwind CSS 4 · Prisma 7 · Supabase (Postgres) · Vercel.
+
+## Como rodar no seu PC
+
+1. Crie o arquivo `.env.local` (ele **não** vai para o GitHub) com a conexão do seu Supabase:
+   ```
+   DATABASE_URL="postgresql://postgres.SEU-PROJETO:SUA-SENHA@aws-0-REGIAO.pooler.supabase.com:6543/postgres"
+   ```
+   Onde pegar: supabase.com/dashboard → seu projeto → **Connect** → Connection string.
+2. Instale, crie as tabelas e o seu admin:
+   ```
+   npm install
+   npm run db:migrar
+   npm run admin:criar
+   ```
+3. Rode `npm run dev` e abra http://localhost:3000 (painel em http://localhost:3000/admin).
+
+## Deploy na Vercel
+
+- **Environment Variables:** só `DATABASE_URL` (a mesma do `.env.local`).
+- O build roda `prisma generate` sozinho (no `npm install`).
+
+## Comandos
+
+| Comando | O que faz |
+|---|---|
+| `npm run dev` | Site em modo desenvolvimento |
+| `npm run build` / `npm start` | Build e servidor de produção |
+| `npm run db:migrar` | Cria/atualiza as tabelas no banco |
+| `npm run admin:criar` | Cria um admin ou troca a senha (pede e-mail e senha) |
+| `npm test` / `npm run lint` | Testes e verificação de código |
+
+## Onde fica cada coisa
+
+- `src/app/page.tsx` + `src/components/landing.tsx` — landing page
+- `src/app/admin/page.tsx` + `src/components/painel-admin.tsx` — painel `/admin`
+- `src/app/actions.ts` — Server Actions (salvar cadastro, login, listar, marcar enviado)
+- `src/app/api/exportar/route.ts` — download CSV/JSON (exige login)
+- `src/lib/whatsapp.ts` — texto do convite e link do jogo
+- `prisma/schema.prisma` — tabelas `sam_cadastros`, `sam_admins`, `sam_sessoes`
+
+---
+
+## Briefing original
+
 
 Crie uma landing page moderna, responsiva (mobile-first) e de alta conversão com foco total na captura de cadastro.
 

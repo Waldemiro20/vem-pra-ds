@@ -36,3 +36,12 @@ src/generated/
 
 # Build local da Vercel
 .vercel
+
+# Next.js
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# Variáveis de ambiente (nunca vão para o GitHub)
+.env
+.env*.local

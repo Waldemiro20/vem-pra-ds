@@ -11,6 +11,10 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      // "server-only" só faz sentido dentro do Next; nos testes vira um módulo vazio.
+      "server-only": path.resolve(__dirname, "./src/test/server-only-vazio.ts"),
+    },
   },
 });
