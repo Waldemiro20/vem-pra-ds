@@ -31,4 +31,5 @@ use the editor.
 
 ## Application rules
 
-- Keep Google Sheets delivery in a server-only helper behind a validated server function; accept only explicit JSON success and log classified failures, never raw responses or credentials, so blocked access cannot masquerade as delivery or leak secrets.
+- All app data (landing registrations, super admin accounts and admin sessions) lives only in the user's own Supabase Postgres, accessed through Prisma (`prisma/schema.prisma`, client in `src/lib/db.server.ts`) behind validated server functions. No Google Sheets, no storage buckets, no JSON files, and no personal data or credentials in the code or migrations. Admins are created with `npm run admin:criar`.
+- `DATABASE_URL` is the only credential: `.env.local` locally (never `.env`, which is committed) and Vercel Environment Variables in production. Keep RLS enabled on every `sam_*` table, store only password and session-token hashes, and log classified failures, never personal data, raw database errors or credentials.

@@ -1,41 +1,42 @@
 import { createServerFn } from "@tanstack/react-start";
 import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { COOKIE_ADMIN, DURACAO_SESSAO_S, criarSessao, sessaoValida } from "./admin-sessao.server";
+import { COOKIE_ADMIN, DURACAO_SESSAO_S } from "./admin-sessao.server";
 import {
-  configuracaoDoAmbiente,
-  listarCadastrosDaPlanilha,
-  marcarMensagemEnviada,
-  registrarFalha,
-  verificarLoginNaPlanilha,
-} from "./planilha.server";
+  autenticar,
+  encerrarSessao,
+  listarCadastros,
+  marcarEnviado,
+  sessaoValida,
+} from "./admin.server";
+import { registrarFalha } from "./db.server";
 
-// As credenciais do painel ficam na aba "Admin" da planilha (veja google-sheets/planilha.gs).
-// O servidor só confere com o Apps Script e, se autorizado, grava um cookie de sessão assinado.
+// Login do super admin: tabela sam_admins (e-mail + hash da senha) no Supabase.
 
-const segredo = () => process.env["GOOGLE_SHEETS_TOKEN"];
-const autenticado = () => sessaoValida(getCookie(COOKIE_ADMIN), segredo());
-
-export const verSessaoAdmin = createServerFn({ method: "GET" }).handler(async () => ({
-  autenticado: await autenticado(),
-}));
+export const verSessaoAdmin = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    return { autenticado: await sessaoValida(getCookie(COOKIE_ADMIN)) };
+  } catch (error) {
+    registrarFalha("sessao", error);
+    return { autenticado: false };
+  }
+});
 
 export const entrarAdmin = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     z.object({ email: z.string().trim().email().max(200), senha: z.string().min(1).max(200) }),
   )
   .handler(async ({ data }) => {
-    const r = await verificarLoginNaPlanilha(data, configuracaoDoAmbiente());
-    if (!r.ok) {
-      registrarFalha("login", r);
-      return {
-        ok: false as const,
-        erro: "Não foi possível falar com a planilha. Tente novamente.",
-      };
+    let token;
+    try {
+      token = await autenticar(data.email, data.senha);
+    } catch (error) {
+      registrarFalha("login", error);
+      return { ok: false as const, erro: "Não foi possível acessar o banco. Tente novamente." };
     }
-    if (!r.autorizado) return { ok: false as const, erro: "E-mail ou senha incorretos." };
+    if (!token) return { ok: false as const, erro: "E-mail ou senha incorretos." };
 
-    setCookie(COOKIE_ADMIN, await criarSessao(segredo()!), {
+    setCookie(COOKIE_ADMIN, token, {
       httpOnly: true,
       secure: true,
       sameSite: "strict",
@@ -46,25 +47,36 @@ export const entrarAdmin = createServerFn({ method: "POST" })
   });
 
 export const sairAdmin = createServerFn({ method: "POST" }).handler(async () => {
+  try {
+    await encerrarSessao(getCookie(COOKIE_ADMIN));
+  } catch (error) {
+    registrarFalha("sair", error);
+  }
   deleteCookie(COOKIE_ADMIN, { path: "/" });
   return { ok: true };
 });
 
 export const listarCadastrosAdmin = createServerFn({ method: "GET" }).handler(async () => {
-  if (!(await autenticado())) return { ok: false as const, erro: "nao_autenticado" as const };
-  const r = await listarCadastrosDaPlanilha(configuracaoDoAmbiente());
-  if (!r.ok) {
-    registrarFalha("listar", r);
-    return { ok: false as const, erro: "planilha" as const };
+  try {
+    if (!(await sessaoValida(getCookie(COOKIE_ADMIN)))) {
+      return { ok: false as const, erro: "nao_autenticado" as const };
+    }
+    return { ok: true as const, cadastros: await listarCadastros() };
+  } catch (error) {
+    registrarFalha("listar", error);
+    return { ok: false as const, erro: "armazenamento" as const };
   }
-  return { ok: true as const, cadastros: r.cadastros };
 });
 
 export const marcarEnviadoAdmin = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ linha: z.number().int().min(2), whatsapp: z.string().max(40) }))
+  .validator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
-    if (!(await autenticado())) return { ok: false as const };
-    const r = await marcarMensagemEnviada(data, configuracaoDoAmbiente());
-    if (!r.ok) registrarFalha("marcar", r);
-    return { ok: r.ok };
+    try {
+      if (!(await sessaoValida(getCookie(COOKIE_ADMIN)))) return { ok: false };
+      await marcarEnviado(data.id);
+      return { ok: true };
+    } catch (error) {
+      registrarFalha("marcar", error);
+      return { ok: false };
+    }
   });

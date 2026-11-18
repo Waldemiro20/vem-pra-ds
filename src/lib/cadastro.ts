@@ -7,3 +7,13 @@ export const cadastroSchema = z.object({
 });
 
 export type CadastroForm = z.infer<typeof cadastroSchema>;
+
+// Como um cadastro chega ao painel /admin (datas em ISO).
+export type CadastroAdmin = {
+  id: string;
+  data: string;
+  nome: string;
+  whatsapp: string;
+  localidade: string;
+  enviadoEm: string | null;
+};

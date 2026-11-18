@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, Globe, Lock, MapPin, Phone, Settings, User, Zap } from "lucide-react";
 import { formatWhatsapp } from "@/lib/whatsapp";
 import { cadastroSchema as schema, type CadastroForm as Form } from "@/lib/cadastro";
-import { enviarParaPlanilha } from "@/lib/planilha.functions";
+import { salvarCadastro } from "@/lib/cadastro.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -70,7 +70,7 @@ function Logo() {
 }
 
 function Index() {
-  const enviarCadastro = useServerFn(enviarParaPlanilha);
+  const enviarCadastro = useServerFn(salvarCadastro);
   const [form, setForm] = useState<Form>({ nome: "", whatsapp: "", localidade: "" });
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
@@ -86,7 +86,7 @@ function Index() {
     }
     setErrors({});
     setStatus("sending");
-    // Salva só na planilha do Google (pelo servidor).
+    // Salva no banco (Supabase, via Prisma) pelo servidor.
     try {
       const resultado = await enviarCadastro({ data: r.data });
       setStatus(resultado.ok ? "done" : "error");

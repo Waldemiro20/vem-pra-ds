@@ -30,3 +30,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Cliente Prisma (gerado no install por "prisma generate")
+src/generated/
+
+# Build local da Vercel
+.vercel

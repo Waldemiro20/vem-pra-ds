@@ -1,0 +1,45 @@
+// Banco de dados do site (Supabase/Postgres) via Prisma.
+// A conexão vem da variável de ambiente DATABASE_URL (veja prisma.config.ts).
+// Depois de mudar este arquivo: npm run db:migrar
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Cadastro {
+  id                String    @id @default(uuid()) @db.Uuid
+  nome              String    @db.VarChar(120)
+  whatsapp          String    @db.VarChar(20)
+  localidade        String    @db.VarChar(120)
+  criadoEm          DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  mensagemEnviadaEm DateTime? @map("mensagem_enviada_em") @db.Timestamptz(3)
+
+  @@index([criadoEm])
+  @@map("sam_cadastros")
+}
+
+model Admin {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique @db.VarChar(200)
+  senhaHash String   @map("senha_hash")
+  criadoEm  DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  sessoes   Sessao[]
+
+  @@map("sam_admins")
+}
+
+// Login do painel /admin: o cookie guarda um token aleatório; aqui fica só o hash dele.
+model Sessao {
+  tokenHash String   @id @map("token_hash")
+  adminId   String   @map("admin_id") @db.Uuid
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  expiraEm  DateTime @map("expira_em") @db.Timestamptz(3)
+
+  @@index([expiraEm])
+  @@map("sam_sessoes")
+}

@@ -1,47 +1,23 @@
-// Sessão do painel /admin: cookie "exp.assinatura" assinado com HMAC-SHA256.
-// A chave é derivada do secret GOOGLE_SHEETS_TOKEN, então não há senha guardada no navegador.
+// Sessão do painel /admin: o cookie guarda um token aleatório de 32 bytes;
+// o banco (tabela sam_sessoes) guarda só o SHA-256 dele, com a data de expiração.
 export const COOKIE_ADMIN = "sam_admin";
 export const DURACAO_SESSAO_S = 12 * 60 * 60;
 
-const codificador = new TextEncoder();
-
-function base64url(bytes: ArrayBuffer) {
+function base64url(bytes: Uint8Array) {
   let s = "";
-  for (const b of new Uint8Array(bytes)) s += String.fromCharCode(b);
+  for (const b of bytes) s += String.fromCharCode(b);
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-async function assinar(segredo: string, mensagem: string) {
-  const chave = await crypto.subtle.importKey(
-    "raw",
-    codificador.encode(`sam-admin-sessao:${segredo}`),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  return base64url(await crypto.subtle.sign("HMAC", chave, codificador.encode(mensagem)));
+export function novoTokenSessao() {
+  return base64url(crypto.getRandomValues(new Uint8Array(32)));
 }
 
-function iguais(a: string, b: string) {
-  if (a.length !== b.length) return false;
-  let dif = 0;
-  for (let i = 0; i < a.length; i++) dif |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return dif === 0;
+export async function hashToken(token: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return base64url(new Uint8Array(digest));
 }
 
-export async function criarSessao(segredo: string, agoraMs = Date.now()) {
-  const exp = Math.floor(agoraMs / 1000) + DURACAO_SESSAO_S;
-  return `${exp}.${await assinar(segredo, `admin:${exp}`)}`;
-}
-
-export async function sessaoValida(
-  valor: string | undefined,
-  segredo: string | undefined,
-  agoraMs = Date.now(),
-) {
-  if (!valor || !segredo) return false;
-  const [exp, assinatura] = valor.split(".");
-  if (!exp || !assinatura || !/^\d+$/.test(exp)) return false;
-  if (Number(exp) * 1000 <= agoraMs) return false;
-  return iguais(assinatura, await assinar(segredo, `admin:${exp}`));
+export function tokenComFormatoValido(token: string | undefined): token is string {
+  return typeof token === "string" && /^[A-Za-z0-9_-]{43}$/.test(token);
 }
