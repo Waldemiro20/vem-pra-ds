@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import {
   CheckCircle2,
+  Download,
   LogOut,
   MapPin,
   MessageCircle,
@@ -20,7 +21,7 @@ import {
   verSessaoAdmin,
 } from "@/lib/admin.functions";
 import { linkWhatsapp, mensagemConvite } from "@/lib/whatsapp";
-import type { CadastroPlanilha } from "@/lib/planilha.server";
+import type { CadastroSalvo } from "@/lib/dados.server";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -138,7 +139,7 @@ function Painel() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todos" | "pendentes" | "enviados">("todos");
   // Linhas que já estavam na tela no primeiro carregamento; as que chegarem depois ganham o selo "Novo".
-  const vistas = useRef<Set<number> | null>(null);
+  const vistas = useRef<Set<string> | null>(null);
 
   const lista = useQuery({
     queryKey: ["admin-cadastros"],
@@ -153,14 +154,14 @@ function Painel() {
   });
 
   const marcarEnviado = useMutation({
-    mutationFn: (c: CadastroPlanilha) => marcar({ data: { linha: c.linha, whatsapp: c.whatsapp } }),
+    mutationFn: (c: CadastroSalvo) => marcar({ data: { id: c.id } }),
     onMutate: (c) => {
       qc.setQueryData(["admin-cadastros"], (antigo: typeof lista.data) =>
         antigo?.ok
           ? {
               ...antigo,
               cadastros: antigo.cadastros.map((x) =>
-                x.linha === c.linha ? { ...x, enviadoEm: new Date().toISOString() } : x,
+                x.id === c.id ? { ...x, enviadoEm: new Date().toISOString() } : x,
               ),
             }
           : antigo,
@@ -177,7 +178,7 @@ function Painel() {
 
   const cadastros = lista.data?.ok ? [...lista.data.cadastros].reverse() : [];
   if (lista.data?.ok && vistas.current === null)
-    vistas.current = new Set(cadastros.map((c) => c.linha));
+    vistas.current = new Set(cadastros.map((c) => c.id));
 
   const enviados = cadastros.filter((c) => c.enviadoEm).length;
   const termo = busca.trim().toLowerCase();
@@ -198,12 +199,23 @@ function Painel() {
             Cadastros em tempo real
           </h1>
         </div>
-        <button
-          onClick={sairDoPainel}
-          className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/15"
-        >
-          <LogOut className="h-4 w-4" /> Sair
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {(["csv", "json"] as const).map((f) => (
+            <a
+              key={f}
+              href={`/api/exportar?formato=${f}`}
+              className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/15"
+            >
+              <Download className="h-4 w-4" /> {f === "csv" ? "Excel / CSV" : "JSON"}
+            </a>
+          ))}
+          <button
+            onClick={sairDoPainel}
+            className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/15"
+          >
+            <LogOut className="h-4 w-4" /> Sair
+          </button>
+        </div>
       </header>
 
       <section className="mt-6 grid grid-cols-3 gap-3">
@@ -246,9 +258,9 @@ function Painel() {
         </p>
       </section>
 
-      {lista.data && !lista.data.ok && lista.data.erro === "planilha" && (
+      {lista.data && !lista.data.ok && lista.data.erro === "armazenamento" && (
         <p className="mt-6 rounded-xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-200">
-          Não foi possível ler a planilha agora. Tentando de novo automaticamente...
+          Não foi possível ler os dados agora. Tentando de novo automaticamente...
         </p>
       )}
 
@@ -259,10 +271,10 @@ function Painel() {
         )}
         {visiveis.map((c) => {
           const link = linkWhatsapp(c.whatsapp, mensagemConvite(c.nome));
-          const novo = vistas.current !== null && !vistas.current.has(c.linha);
+          const novo = vistas.current !== null && !vistas.current.has(c.id);
           return (
             <li
-              key={`${c.linha}-${c.whatsapp}`}
+              key={c.id}
               className="flex flex-wrap items-center gap-4 rounded-2xl border border-white/10 bg-[#3a2668]/70 p-4"
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#7c3aed]/40 font-display text-lg font-extrabold">

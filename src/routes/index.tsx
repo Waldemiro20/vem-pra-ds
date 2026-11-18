@@ -2,10 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { CheckCircle2, Globe, Lock, MapPin, Phone, Settings, User, Zap } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatWhatsapp } from "@/lib/whatsapp";
 import { cadastroSchema as schema, type CadastroForm as Form } from "@/lib/cadastro";
-import { enviarParaPlanilha } from "@/lib/planilha.functions";
+import { salvarCadastro } from "@/lib/cadastro.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,7 +40,7 @@ function Logo() {
 }
 
 function Index() {
-  const enviarCadastro = useServerFn(enviarParaPlanilha);
+  const enviarCadastro = useServerFn(salvarCadastro);
   const [form, setForm] = useState<Form>({ nome: "", whatsapp: "", localidade: "" });
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
@@ -57,14 +56,13 @@ function Index() {
     }
     setErrors({});
     setStatus("sending");
-    // Salva no banco e na planilha do Google ao mesmo tempo.
-    const [banco, planilha] = await Promise.allSettled([
-      supabase.from("cadastros_ds").insert(r.data),
-      enviarCadastro({ data: r.data }),
-    ]);
-    const salvouNoBanco = banco.status === "fulfilled" && !banco.value.error;
-    const salvouNaPlanilha = planilha.status === "fulfilled" && planilha.value.ok;
-    setStatus(salvouNoBanco || salvouNaPlanilha ? "done" : "error");
+    // Salva no dados.json (Supabase Storage) pelo servidor.
+    try {
+      const r2 = await enviarCadastro({ data: r.data });
+      setStatus(r2.ok ? "done" : "error");
+    } catch {
+      setStatus("error");
+    }
   }
 
   const field = (
