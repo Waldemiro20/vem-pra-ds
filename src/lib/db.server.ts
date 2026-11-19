@@ -8,12 +8,19 @@ let cliente: PrismaClient | undefined;
 
 export function db() {
   if (!cliente) {
-    const url = process.env["DATABASE_URL"];
+    const url = urlDoBanco(process.env["DATABASE_URL"]);
     if (!url) throw new Error("db_configuracao");
     // Poucas conexões por instância: cada função da Vercel é uma instância separada.
     cliente = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, max: 3 }) });
   }
   return cliente;
+}
+
+// Na Vercel é comum colar o valor com aspas, espaços ou quebra de linha (copiado do .env.local).
+// O pg não entende isso e a conexão falha, então limpamos antes de usar.
+export function urlDoBanco(bruta: string | undefined) {
+  const url = (bruta ?? "").trim().replace(/^(['"])(.*)\1$/s, "$2").trim();
+  return /^postgres(ql)?:\/\//.test(url) ? url : "";
 }
 
 // Classifica a falha sem expor a URL, credenciais ou a mensagem bruta do banco.
